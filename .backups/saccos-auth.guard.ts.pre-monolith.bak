@@ -1,0 +1,36 @@
+import { Injectable, inject } from '@angular/core';
+import { Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { Observable, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
+import { SaccosAuthService } from './saccos-auth.service';
+
+@Injectable({ providedIn: 'root' })
+export class SaccosAuthGuard {
+  private auth = inject(SaccosAuthService);
+  private router = inject(Router);
+
+  canActivate(
+    route: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot
+  ): Observable<boolean> | boolean {
+
+    // Already have valid SACCOS token in localStorage
+    if (this.auth.hasValidToken()) {
+      return true;
+    }
+
+    // Try to auto-exchange Mifos session for SACCOS token
+    // This works if user is already logged into Mifos
+    return this.auth.exchangeFineractSession().pipe(
+      map(() => true),
+      catchError(() => {
+        // Exchange failed — redirect to SACCOS login with return URL
+        this.router.navigate(['/saccos/login'], {
+          queryParams: { returnUrl: state.url },
+          replaceUrl: true
+        });
+        return of(false);
+      })
+    );
+  }
+}

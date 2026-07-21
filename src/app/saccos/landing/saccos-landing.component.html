@@ -1,0 +1,55 @@
+<!--
+  Copyright since 2025 Mifos Initiative
+
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+-->
+
+<div class="saccos-landing">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>SACCOS management</mat-card-title>
+      <mat-card-subtitle> Members, shares, contributions, guarantorship, loans and dividends </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Connecting: silently bridging the Mifos session -->
+      <p class="status" *ngIf="ssoState === 'connecting'">
+        <mat-spinner diameter="18"></mat-spinner>
+        Connecting to SACCOS…
+      </p>
+
+      <!-- Connected -->
+      <p class="status ok" *ngIf="ssoState === 'connected'">
+        <mat-icon>check_circle</mat-icon>
+        Signed into SACCOS.
+        <button mat-button type="button" class="logout-btn" (click)="logout()">Sign out</button>
+      </p>
+
+      <!-- Failed: offer a retry -->
+      <div class="warn-box" *ngIf="ssoState === 'failed'">
+        <p class="status">
+          <mat-icon class="warn">error_outline</mat-icon>
+          {{ ssoError || 'Not connected to SACCOS.' }}
+        </p>
+        <button mat-raised-button color="primary" type="button" (click)="connect()">Retry connection</button>
+      </div>
+
+      <mat-list>
+        <mat-list-item
+          *ngFor="let tile of tiles"
+          [class.disabled]="!tile.ready"
+          [class.clickable]="tile.ready"
+          [routerLink]="tile.ready ? tile.route : null"
+        >
+          <mat-icon matListItemIcon>{{ tile.icon }}</mat-icon>
+          <span matListItemTitle>{{ tile.title }}</span>
+          <span matListItemLine>{{ tile.description }}</span>
+          <span *ngIf="!tile.ready" matListItemMeta class="soon">soon</span>
+          <mat-icon *ngIf="tile.ready" matListItemMeta>chevron_right</mat-icon>
+        </mat-list-item>
+      </mat-list>
+    </mat-card-content>
+  </mat-card>
+</div>

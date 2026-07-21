@@ -1,0 +1,110 @@
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { SaccosMemberService, MemberSummary } from '../core/saccos-member.service';
+import { SaccosAuthService } from '../core/saccos-auth.service';
+import { switchMap, of } from 'rxjs';
+
+@Component({
+  selector: 'mifosx-member-detail',
+  standalone: true,
+  imports: [
+    CommonModule, RouterLink, ReactiveFormsModule,
+    MatCardModule, MatButtonModule, MatIconModule,
+    MatFormFieldModule, MatInputModule, MatChipsModule,
+    MatDividerModule, MatProgressSpinnerModule
+  ],
+  templateUrl: './member-detail.component.html'
+})
+export class MemberDetailComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private memberService = inject(SaccosMemberService);
+  private authService = inject(SaccosAuthService);
+  private fb = inject(FormBuilder);
+
+  member: MemberSummary | null = null;
+  loading = true;
+  error: string | null = null;
+  editing = false;
+  saving = false;
+  activating = false;
+  successMsg: string | null = null;
+
+  editForm: FormGroup = this.fb.group({
+    email: [''],
+    physicalAddress: [''],
+    district: [''],
+    region: [''],
+    occupation: [''],
+    employer: [''],
+    monthlyIncome: [null]
+  });
+
+  ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    const ensure$ = this.authService.hasValidToken()
+      ? of(null) : this.authService.exchangeFineractSession();
+
+    ensure$.pipe(
+      switchMap(() => this.memberService.getMember(id))
+    ).subscribe({
+      next: (m) => { this.member = m; this.loading = false; this.populateForm(); },
+      error: (err) => { console.error('Member detail error:', err); this.error = `Could not load member. Status: ${err?.status} ${err?.message}`; this.loading = false; }
+    });
+  }
+
+  populateForm(): void {
+    if (!this.member) return;
+    this.editForm.patchValue({
+      email: this.member.email,
+      physicalAddress: (this.member as any).physicalAddress,
+      district: this.member.district,
+      region: this.member.region,
+      occupation: this.member.occupation,
+      employer: (this.member as any).employer,
+      monthlyIncome: (this.member as any).monthlyIncome
+    });
+  }
+
+  startEdit(): void { this.editing = true; this.successMsg = null; }
+  cancelEdit(): void { this.editing = false; this.populateForm(); }
+
+  saveEdit(): void {
+    if (!this.member) return;
+    this.saving = true;
+    this.memberService.updateMember(this.member.id, this.editForm.value).subscribe({
+      next: (updated) => {
+        this.member = updated;
+        this.saving = false;
+        this.editing = false;
+        this.successMsg = 'Member profile updated successfully.';
+      },
+      error: () => { this.saving = false; this.error = 'Update failed.'; }
+    });
+  }
+
+  activate(): void {
+    if (!this.member) return;
+    this.activating = true;
+    this.memberService.activateMember(this.member.id).subscribe({
+      next: (updated) => {
+        this.member = updated;
+        this.activating = false;
+        this.successMsg = 'Member activated and KYC verified successfully!';
+      },
+      error: () => { this.activating = false; this.error = 'Activation failed.'; }
+    });
+  }
+
+  back(): void { this.router.navigate(['/saccos/members']); }
+}

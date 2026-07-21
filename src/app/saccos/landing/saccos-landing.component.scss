@@ -1,0 +1,45 @@
+/**
+ * Copyright since 2025 Mifos Initiative
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+.saccos-landing {
+  max-width: 720px;
+  margin: 1rem auto;
+  padding: 0 1rem;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem;
+  background: rgb(0 0 0 / 4%);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.status.ok {
+  background: rgb(46 125 50 / 8%);
+  color: #1b5e20;
+}
+
+.warn {
+  color: #b71c1c;
+}
+
+.soon {
+  font-size: 12px;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}

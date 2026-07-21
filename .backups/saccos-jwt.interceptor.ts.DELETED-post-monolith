@@ -1,0 +1,62 @@
+/**
+ * Copyright since 2025 Mifos Initiative
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/**
+ * Copyright since 2026 reimagineafrica
+ *
+ * Attaches the SACCOS JWT to requests targeting api.reimagineafrica.co.tz/api/saccos/*.
+ *
+ * Coexists safely with the Mifos web app's existing Fineract auth interceptor:
+ *   /fineract-provider/...  -> handled by the existing AuthenticationInterceptor
+ *   /api/saccos/...         -> handled here
+ *
+ * The login endpoint is excluded (no JWT to send yet at that point).
+ */
+import { Injectable, Inject } from '@angular/core';
+import { HttpInterceptor, HttpRequest, HttpHandler, HttpEvent, HttpErrorResponse } from '@angular/common/http';
+import { Observable, throwError } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
+
+import { SaccosAuthService } from './saccos-auth.service';
+import { SACCOS_API_CONFIG, SaccosApiConfig } from './saccos-api.config';
+
+@Injectable()
+export class SaccosJwtInterceptor implements HttpInterceptor {
+  constructor(
+    private auth: SaccosAuthService,
+    @Inject(SACCOS_API_CONFIG) private config: SaccosApiConfig
+  ) {}
+
+  intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
+    if (!this.isSaccosRequest(req.url)) {
+      return next.handle(req);
+    }
+    // The login endpoint itself must not require a JWT.
+    if (req.url.startsWith(`${this.config.auth}/login`)) {
+      return next.handle(req);
+    }
+
+    return this.auth.getToken().pipe(
+      switchMap((token) => next.handle(this.withBearer(req, token))),
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === 401) {
+          this.auth.invalidate();
+        }
+        return throwError(() => error);
+      })
+    );
+  }
+
+  private isSaccosRequest(url: string): boolean {
+    return url.startsWith(this.config.baseUrl);
+  }
+
+  private withBearer(req: HttpRequest<unknown>, token: string): HttpRequest<unknown> {
+    return req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
+  }
+}

@@ -1,0 +1,68 @@
+/**
+ * Copyright since 2025 Mifos Initiative
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/**
+ * Copyright since 2026 reimagineafrica
+ *
+ * Single source of truth for the SACCOS service mesh gateway paths.
+ * All paths are RELATIVE to the web app's origin and resolved by Traefik
+ * at api.reimagineafrica.co.tz to the corresponding Spring Boot service.
+ */
+import { InjectionToken } from '@angular/core';
+
+export interface SaccosApiConfig {
+  /** Absolute origin of the SACCOS gateway. */
+  origin: string;
+  /** Full base URL (origin + base path). */
+  baseUrl: string;
+  /** saccos-security-service — JWT issuance & RBAC. */
+  auth: string;
+  /** saccos-member-service — profiles, KYC, eligibility. */
+  members: string;
+  /** saccos-contribution-service — monthly contributions. */
+  contributions: string;
+  /** saccos-shares-service — share register & transfers. */
+  shares: string;
+  /** saccos-guarantor-service — guarantorship & exposure. */
+  guarantors: string;
+  /** saccos-loan-service — SACCO loan lifecycle. */
+  loans: string;
+  /** saccos-notification-service — multi-channel alerts. */
+  notifications: string;
+  /** saccos-dividend-service — year-end dividends. */
+  dividends: string;
+}
+
+const ORIGIN = 'https://api.reimagineafrica.co.tz';
+const BASE = `${ORIGIN}/api/saccos`;
+
+export const DEFAULT_SACCOS_API_CONFIG: SaccosApiConfig = {
+  origin: ORIGIN,
+  baseUrl: BASE,
+  auth: `${BASE}/auth`,
+  members: `${BASE}/members`,
+  contributions: `${BASE}/contributions`,
+  shares: `${BASE}/shares`,
+  guarantors: `${BASE}/guarantors`,
+  loans: `${BASE}/loans`,
+  notifications: `${BASE}/notifications`,
+  dividends: `${BASE}/dividends`
+};
+
+/**
+ * The token self-provides a default at root level so any standalone
+ * component or `providedIn: 'root'` service can inject it without
+ * needing SaccosModule to be loaded first.
+ *
+ * SaccosModule can still override this default via its providers array
+ * (e.g. to inject a tenant-specific origin).
+ */
+export const SACCOS_API_CONFIG = new InjectionToken<SaccosApiConfig>('SACCOS_API_CONFIG', {
+  providedIn: 'root',
+  factory: () => DEFAULT_SACCOS_API_CONFIG
+});

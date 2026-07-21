@@ -1,0 +1,194 @@
+/**
+ * Copyright since 2025 Mifos Initiative
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/**
+ * Copyright since 2026 reimagineafrica
+ *
+ * Auth bridge — exchanges the staff member's SACCOS credentials for a JWT
+ * from saccos-security-service. The JWT is cached in localStorage and
+ * attached to /api/saccos/* requests by SaccosJwtInterceptor.
+ *
+ * The login endpoint signature was discovered by inspecting AuthController
+ * in saccos-security-service:
+ *
+ *   POST {auth}/login   { username, password }   ->   { accessToken, ... }
+ */
+import { Injectable, Inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, of, throwError, BehaviorSubject } from 'rxjs';
+import { map, catchError, shareReplay, tap } from 'rxjs/operators';
+
+import { SACCOS_API_CONFIG, SaccosApiConfig } from './saccos-api.config';
+
+interface LoginRequest {
+  username: string;
+  password: string;
+  tenantIdentifier?: string;
+}
+
+interface LoginResponse {
+  accessToken: string;
+  refreshToken?: string;
+  /** Seconds until access token expiry, as returned by the security service. */
+  expiresIn: number;
+  roles?: string[];
+  userId?: string;
+}
+
+const STORAGE_TOKEN = 'saccosAccessToken';
+const STORAGE_EXP = 'saccosAccessTokenExp';
+/** Refresh 60s before expiry to avoid edge-of-expiry 401s. */
+const EXPIRY_SKEW_MS = 60_000;
+
+@Injectable({ providedIn: 'root' })
+export class SaccosAuthService {
+  /** Streams login state for UI components that care (e.g. SACCOS landing tile). */
+  readonly authenticated$ = new BehaviorSubject<boolean>(this.hasValidToken());
+
+  private inflight$?: Observable<string>;
+
+  constructor(
+    private http: HttpClient,
+    @Inject(SACCOS_API_CONFIG) private config: SaccosApiConfig
+  ) {}
+
+  /**
+   * Performs an explicit login against saccos-security-service.
+   * Called from the SACCOS landing screen, NOT automatically.
+   * (Future iterations can add SSO from Fineract auth via a separate
+   * endpoint on the security service.)
+   */
+  login(username: string, password: string): Observable<void> {
+    return this.http
+      .post<LoginResponse>(`${this.config.auth}/login`, {
+        username,
+        password
+      } as LoginRequest)
+      .pipe(
+        map((res) => {
+          this.persist(res);
+          this.authenticated$.next(true);
+        })
+      );
+  }
+
+  /**
+   * Single sign-on bridge. Reads the Fineract Basic-Auth key the web-app
+   * already holds (from the user's Mifos login) and exchanges it for a
+   * SACCOS JWT via the security service. No second password prompt.
+   */
+  exchangeFineractSession(): Observable<void> {
+    const base64Key = this.readMifosBase64Key();
+    if (!base64Key) {
+      return throwError(() => new Error('No active Mifos session found.'));
+    }
+    return this.http
+      .post<LoginResponse>(`${this.config.auth}/fineract-exchange`, {
+        base64Key,
+        tenantId: 'default'
+      })
+      .pipe(
+        map((res) => {
+          this.persist(res);
+          this.authenticated$.next(true);
+        })
+      );
+  }
+
+  /** Reads the web-app's stored Fineract credential key (session or local storage). */
+  private readMifosBase64Key(): string | null {
+    const raw = sessionStorage.getItem('mifosXCredentials') || localStorage.getItem('mifosXCredentials');
+    if (!raw) {
+      return null;
+    }
+    try {
+      const creds = JSON.parse(raw);
+      return creds?.base64EncodedAuthenticationKey ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Returns a valid access token, refreshing if needed.
+   * Concurrent callers share one in-flight request.
+   */
+  getToken(): Observable<string> {
+    const cached = this.cachedToken();
+    if (cached) {
+      return of(cached);
+    }
+    // Token missing or expired — silently re-exchange the Mifos session.
+    // Concurrent callers share one in-flight refresh.
+    if (!this.inflight$) {
+      this.inflight$ = this.exchangeFineractSession().pipe(
+        map(() => {
+          const token = localStorage.getItem(STORAGE_TOKEN);
+          if (!token) {
+            throw new Error('SACCOS session could not be established.');
+          }
+          return token;
+        }),
+        tap({
+          next: () => {
+            this.inflight$ = undefined;
+          },
+          error: () => {
+            this.inflight$ = undefined;
+          }
+        }),
+        shareReplay(1)
+      );
+    }
+    return this.inflight$;
+  }
+
+  /** Clear the cached token (after a 401 from a SACCOS service). */
+  invalidate(): void {
+    localStorage.removeItem(STORAGE_TOKEN);
+    localStorage.removeItem(STORAGE_EXP);
+    this.authenticated$.next(false);
+  }
+
+  logout(): void {
+    this.invalidate();
+  }
+
+  hasValidToken(): boolean {
+    return this.cachedToken() !== null;
+  }
+
+  private cachedToken(): string | null {
+    const token = localStorage.getItem(STORAGE_TOKEN);
+    if (!token) {
+      return null;
+    }
+    // Trust the JWT's own exp claim rather than a separately-stored value,
+    // which can be wrong if expiresIn was missing/zero in the response.
+    const expMs = this.jwtExpiryMs(token);
+    if (expMs !== null && Date.now() < expMs - EXPIRY_SKEW_MS) {
+      return token;
+    }
+    return null;
+  }
+
+  /** Decode a JWT's exp claim (seconds) into epoch millis, or null if unreadable. */
+  private jwtExpiryMs(token: string): number | null {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private persist(res: LoginResponse): void {
+    localStorage.setItem(STORAGE_TOKEN, res.accessToken);
+    localStorage.setItem(STORAGE_EXP, String(Date.now() + res.expiresIn * 1000));
+  }
+}

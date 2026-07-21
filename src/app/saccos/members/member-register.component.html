@@ -1,0 +1,190 @@
+<!--
+  Copyright since 2025 Mifos Initiative
+
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http:\/\/mozilla.org\/MPL\/2.0\/.
+-->
+<div style="max-width:800px; margin: 24px auto; padding: 0 16px;">
+
+  <!-- Success -->
+  <mat-card *ngIf="success" style="margin-bottom:16px; background:#e8f5e9;">
+    <mat-card-content>
+      <mat-icon style="color:#2e7d32; vertical-align:middle;">check_circle</mat-icon>
+      {{ success }}
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Error -->
+  <mat-card *ngIf="error" style="margin-bottom:16px; background:#ffebee;">
+    <mat-card-content>
+      <mat-icon style="color:#c62828; vertical-align:middle;">error</mat-icon>
+      {{ error }}
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Register New Member</mat-card-title>
+      <mat-card-subtitle>SACCOS member registration — creates Fineract client + login account</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="form">
+
+        <!-- Personal Details -->
+        <h3>Personal Details</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <mat-form-field appearance="outline">
+            <mat-label>First Name *</mat-label>
+            <input matInput formControlName="firstName">
+            <mat-error *ngIf="form.get('firstName')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Middle Name</mat-label>
+            <input matInput formControlName="middleName">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Last Name *</mat-label>
+            <input matInput formControlName="lastName">
+            <mat-error *ngIf="form.get('lastName')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Date of Birth *</mat-label>
+            <input matInput type="date" formControlName="dateOfBirth">
+            <mat-error *ngIf="form.get('dateOfBirth')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Gender *</mat-label>
+            <mat-select formControlName="gender">
+              <mat-option value="MALE">Male</mat-option>
+              <mat-option value="FEMALE">Female</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('gender')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>National ID</mat-label>
+            <input matInput formControlName="nationalId">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Phone Number *</mat-label>
+            <input matInput formControlName="phoneNumber" placeholder="+255XXXXXXXXX">
+            <mat-error *ngIf="form.get('phoneNumber')?.hasError('required')">Required</mat-error>
+            <mat-error *ngIf="form.get('phoneNumber')?.hasError('pattern')">Invalid phone</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Email</mat-label>
+            <input matInput formControlName="email">
+            <mat-error *ngIf="form.get('email')?.hasError('email')">Invalid email</mat-error>
+          </mat-form-field>
+        </div>
+
+        <mat-divider style="margin:16px 0;"></mat-divider>
+
+        <!-- Address & Employment -->
+        <h3>Address & Employment</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <mat-form-field appearance="outline">
+            <mat-label>Physical Address</mat-label>
+            <input matInput formControlName="physicalAddress">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>District</mat-label>
+            <input matInput formControlName="district">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Region</mat-label>
+            <input matInput formControlName="region">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Occupation</mat-label>
+            <input matInput formControlName="occupation">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Employer</mat-label>
+            <input matInput formControlName="employer">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Monthly Income (TZS)</mat-label>
+            <input matInput type="number" formControlName="monthlyIncome">
+          </mat-form-field>
+        </div>
+
+        <mat-divider style="margin:16px 0;"></mat-divider>
+
+        <!-- Login Credentials -->
+        <h3>Login Credentials</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <mat-form-field appearance="outline">
+            <mat-label>Username *</mat-label>
+            <input matInput formControlName="username">
+            <mat-error *ngIf="form.get('username')?.hasError('required')">Required</mat-error>
+            <mat-error *ngIf="form.get('username')?.hasError('minlength')">Min 3 characters</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Password *</mat-label>
+            <input matInput type="password" formControlName="password">
+            <mat-error *ngIf="form.get('password')?.hasError('required')">Required</mat-error>
+            <mat-error *ngIf="form.get('password')?.hasError('minlength')">Min 8 characters</mat-error>
+          </mat-form-field>
+        </div>
+
+        <mat-divider style="margin:16px 0;"></mat-divider>
+
+        <!-- Next of Kin -->
+        <h3>Next of Kin</h3>
+        <div formArrayName="nextOfKins">
+          <div *ngFor="let nok of noks.controls; let i=index" [formGroupName]="i"
+               style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:16px; margin-bottom:8px; align-items:center;">
+            <mat-form-field appearance="outline">
+              <mat-label>Full Name *</mat-label>
+              <input matInput formControlName="fullName">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Relationship *</mat-label>
+              <mat-select formControlName="relationship">
+                <mat-option value="SPOUSE">Spouse</mat-option>
+                <mat-option value="PARENT">Parent</mat-option>
+                <mat-option value="CHILD">Child</mat-option>
+                <mat-option value="SIBLING">Sibling</mat-option>
+                <mat-option value="OTHER">Other</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Phone *</mat-label>
+              <input matInput formControlName="phoneNumber">
+            </mat-form-field>
+            <button mat-icon-button color="warn" (click)="removeNok(i)" [disabled]="noks.length === 1">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </div>
+        <button mat-stroked-button type="button" (click)="addNok()" style="margin-bottom:16px;">
+          <mat-icon>add</mat-icon> Add Next of Kin
+        </button>
+
+      </form>
+    </mat-card-content>
+
+    <mat-card-actions align="end" style="padding:16px;">
+      <button mat-button (click)="cancel()" [disabled]="submitting">Cancel</button>
+      <button mat-raised-button color="primary" (click)="submit()" [disabled]="submitting">
+        <mat-spinner diameter="18" *ngIf="submitting" style="display:inline-block; margin-right:8px;"></mat-spinner>
+        {{ submitting ? 'Registering...' : 'Register Member' }}
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>

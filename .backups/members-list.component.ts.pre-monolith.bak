@@ -1,0 +1,92 @@
+/**
+ * Copyright since 2025 Mifos Initiative
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
+import { MatCardModule } from '@angular/material/card';
+import { MatTableModule } from '@angular/material/table';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
+import { switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
+import {
+  SaccosMemberService,
+  MemberSummary
+} from '../core/saccos-member.service';
+import { SaccosAuthService } from '../core/saccos-auth.service';
+
+type LoadState = 'loading' | 'loaded' | 'error';
+
+@Component({
+  selector: 'mifosx-members-list',
+  standalone: true,
+  imports: [
+    CommonModule,
+    RouterLink,
+    MatCardModule,
+    MatTableModule,
+    MatChipsModule,
+    MatProgressSpinnerModule,
+    MatIconModule
+  ],
+  templateUrl: './members-list.component.html',
+  styleUrls: ['./members-list.component.scss']
+})
+export class MembersListComponent implements OnInit {
+  private readonly memberService = inject(SaccosMemberService);
+  private readonly authService = inject(SaccosAuthService);
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  state: LoadState = 'loading';
+  errorMessage: string | null = null;
+  members: MemberSummary[] = [];
+  totalElements = 0;
+
+  readonly displayedColumns = [
+    'memberNumber',
+    'fullName',
+    'phoneNumber',
+    'status',
+    'kycStatus',
+    'joinedAt'
+  ];
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.state = 'loading';
+    this.errorMessage = null;
+
+    // Ensure SACCOS token exists before loading members
+    const ensure$ = this.authService.hasValidToken()
+      ? of(null)
+      : this.authService.exchangeFineractSession();
+
+    ensure$.pipe(
+      switchMap(() => this.memberService.getMembers())
+    ).subscribe({
+      next: (page) => {
+        this.members = page.members ?? [];
+        this.totalElements = page.totalElements ?? this.members.length;
+        this.state = 'loaded';
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.errorMessage =
+          err?.status === 403
+            ? 'You do not have permission to view members.'
+            : 'Could not load members. Please try again.';
+        this.state = 'error';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+}

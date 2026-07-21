@@ -1,0 +1,98 @@
+import { Component, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDividerModule } from '@angular/material/divider';
+import { SaccosMemberService } from '../core/saccos-member.service';
+import { SaccosAuthService } from '../core/saccos-auth.service';
+import { switchMap, of } from 'rxjs';
+
+@Component({
+  selector: 'mifosx-member-register',
+  standalone: true,
+  imports: [
+    CommonModule, ReactiveFormsModule,
+    MatCardModule, MatFormFieldModule, MatInputModule,
+    MatSelectModule, MatButtonModule, MatIconModule,
+    MatProgressSpinnerModule, MatDividerModule
+  ],
+  templateUrl: './member-register.component.html'
+})
+export class MemberRegisterComponent {
+  private fb = inject(FormBuilder);
+  private memberService = inject(SaccosMemberService);
+  private authService = inject(SaccosAuthService);
+  private router = inject(Router);
+
+  submitting = false;
+  error: string | null = null;
+  success: string | null = null;
+
+  form: FormGroup = this.fb.group({
+    firstName: ['', [Validators.required, Validators.minLength(2)]],
+    middleName: [''],
+    lastName: ['', [Validators.required, Validators.minLength(2)]],
+    dateOfBirth: ['', Validators.required],
+    gender: ['', Validators.required],
+    nationalId: [''],
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,13}$/)]],
+    email: ['', Validators.email],
+    physicalAddress: [''],
+    district: [''],
+    region: [''],
+    occupation: [''],
+    employer: [''],
+    monthlyIncome: [null],
+    username: ['', [Validators.required, Validators.minLength(3)]],
+    password: ['', [Validators.required, Validators.minLength(8)]],
+    nextOfKins: this.fb.array([this.createNok()])
+  });
+
+  get noks(): FormArray {
+    return this.form.get('nextOfKins') as FormArray;
+  }
+
+  createNok(): FormGroup {
+    return this.fb.group({
+      fullName: ['', Validators.required],
+      relationship: ['', Validators.required],
+      phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,13}$/)]],
+      primary: [true]
+    });
+  }
+
+  addNok(): void { this.noks.push(this.createNok()); }
+  removeNok(i: number): void { if (this.noks.length > 1) this.noks.removeAt(i); }
+
+  submit(): void {
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.submitting = true;
+    this.error = null;
+
+    const ensure$ = this.authService.hasValidToken()
+      ? of(null) : this.authService.exchangeFineractSession();
+
+    ensure$.pipe(
+      switchMap(() => this.memberService.registerMember(this.form.value))
+    ).subscribe({
+      next: (res: any) => {
+        this.submitting = false;
+        this.success = `Member registered successfully! Member #: ${res.memberNumber}`;
+        setTimeout(() => this.router.navigate(['/saccos/members']), 2000);
+      },
+      error: (err) => {
+        this.submitting = false;
+        this.error = err?.error?.detail || err?.error?.message || 'Registration failed. Please try again.';
+      }
+    });
+  }
+
+  cancel(): void { this.router.navigate(['/saccos/members']); }
+}

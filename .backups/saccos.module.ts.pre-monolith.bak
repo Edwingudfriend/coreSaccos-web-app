@@ -1,0 +1,30 @@
+/**
+ * Copyright since 2025 Mifos Initiative
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/**
+ * Copyright since 2026 reimagineafrica
+ *
+ * SACCOS feature module — lazy-loaded.
+ */
+import { NgModule } from '@angular/core';
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+
+import { SaccosRoutingModule } from './saccos-routing.module';
+import { SaccosLandingComponent } from './landing/saccos-landing.component';
+import { SaccosJwtInterceptor } from './core/saccos-jwt.interceptor';
+
+@NgModule({
+  imports: [
+    SaccosRoutingModule,
+    SaccosLandingComponent
+  ],
+  providers: [
+    { provide: HTTP_INTERCEPTORS, useClass: SaccosJwtInterceptor, multi: true }
+  ]
+})
+export class SaccosModule {}

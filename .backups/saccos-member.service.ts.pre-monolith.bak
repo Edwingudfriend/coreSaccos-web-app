@@ -1,0 +1,89 @@
+import { Injectable, Inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { SACCOS_API_CONFIG, SaccosApiConfig } from './saccos-api.config';
+
+export interface MemberSummary {
+  id: string;
+  memberNumber: string;
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  email: string;
+  status: string;
+  kycStatus: string;
+  joinedAt: string;
+  district: string;
+  region: string;
+  occupation: string;
+  fineractClientId: number;
+  nextOfKins: NextOfKin[];
+}
+
+export interface NextOfKin {
+  id: string;
+  fullName: string;
+  relationship: string;
+  phoneNumber: string;
+  primary: boolean;
+}
+
+export interface MemberPageResponse {
+  members: MemberSummary[];
+  totalElements: number;
+  totalPages: number;
+  currentPage: number;
+}
+
+export interface RegisterMemberRequest {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: string;
+  nationalId?: string;
+  phoneNumber: string;
+  email?: string;
+  physicalAddress?: string;
+  district?: string;
+  region?: string;
+  occupation?: string;
+  employer?: string;
+  monthlyIncome?: number;
+  username: string;
+  password: string;
+  nextOfKins?: { fullName: string; relationship: string; phoneNumber: string; primary: boolean }[];
+}
+
+@Injectable({ providedIn: 'root' })
+export class SaccosMemberService {
+  constructor(
+    private http: HttpClient,
+    @Inject(SACCOS_API_CONFIG) private config: SaccosApiConfig
+  ) {}
+
+  getMembers(): Observable<MemberPageResponse> {
+    return this.http.get<MemberPageResponse>(this.config.members);
+  }
+
+  getMember(id: string): Observable<MemberSummary> {
+    return this.http.get<MemberSummary>(`${this.config.members}/${id}`);
+  }
+
+  registerMember(request: RegisterMemberRequest): Observable<any> {
+    return this.http.post(this.config.members, request);
+  }
+
+  activateMember(id: string): Observable<MemberSummary> {
+    return this.http.post<MemberSummary>(`${this.config.members}/${id}/activate`, {});
+  }
+
+  searchMembers(query: string): Observable<MemberPageResponse> {
+    return this.http.get<MemberPageResponse>(`${this.config.members}/search?q=${query}`);
+  }
+
+  updateMember(id: string, data: Partial<MemberSummary>): Observable<MemberSummary> {
+    return this.http.patch<MemberSummary>(`${this.config.members}/${id}`, data);
+  }
+}
